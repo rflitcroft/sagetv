@@ -1721,6 +1721,8 @@ bool tuneChannel( CHANNEL_DATA *channel, const char* tune_string )
 				DVBSFreq->onid, DVBSFreq->tsid, DVBSFreq->sid, DVBSFreq->frequency, DVBSFreq->ctrl, skip_tune, 
 				DVBSFreq->video_pid, DVBSFreq->audio_pid, DVBSFreq->name ));
 
+			SageLog(( _LOG_TRACE, 3, "DVB-S Freq entry extra: mod:%d", DVBSFreq->modulation));
+
 			if ( SageTuneDVBSFrequency( channel->Dev, DVBSFreq, skip_tune ) < 0 )
 			{	
 				SageLog(( _LOG_TRACE, 3, "Tuning DVB-S channel '%d' %s (freq:%d) failed.\r\n", ch, DVBSFreq->name, freq ));
@@ -3229,9 +3231,9 @@ int scanDVBSChannel( CHANNEL_DATA *Channel, char* tuningString, char** scanResul
 	if (  ( freq = SageTuneDVBSFrequency( Channel->Dev, DVBSFreq, 0 ) )< 0 )
 		return -1;
 
-	ret = WaiteScanDone( Channel );	
-	if ( ret < 0 )
-		SageStopParser( Channel->Dev );
+//	ret = WaiteScanDone( Channel );
+//	if ( ret < 0 )
+//		SageStopParser( Channel->Dev );
 
 	//scan channel on a stream
 	tune.stream_format = DVB_STREAM;
@@ -3248,7 +3250,6 @@ int scanDVBSChannel( CHANNEL_DATA *Channel, char* tuningString, char** scanResul
 	if ( ret < 0 )
 		SageStopParser( Channel->Dev );
 
-	
 	//get scan channel list
 	ret = SageTVScanChannelList( Channel->Dev, (void**)&channel_list );
 
