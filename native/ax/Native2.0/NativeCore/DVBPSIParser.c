@@ -474,24 +474,28 @@ static int UnpackNIT( DVB_PSI* pDVBPSI, TS_SECTION* pSection )
 
 				//skip 2 bytes orbit
 				 nit->dvb.s.orbit = (short)UnpackBCDcode( (char*)p+4, 2 );
-				if ( (p[6] & 0x80) )  nit->dvb.s.orbit = - nit->dvb.s.orbit;
-				 nit->dvb.s.pol = (p[6]>>5)&0x03;
-				 nit->dvb.s.pol++;
-				 nit->dvb.s.modulation = p[6] & 0x1f;
-				if (  nit->dvb.s.modulation == 1 )  nit->dvb.s.modulation = 20; else //QPSK
-				if (  nit->dvb.s.modulation == 2 )  nit->dvb.s.modulation = 22; else //OQPSK
-				if (  nit->dvb.s.modulation == 3 )  nit->dvb.s.modulation = 1;  else //16QAM
-				if (  nit->dvb.s.modulation == 5 ) 
-					nit->dvb.s.modulation = 30; else //8PSK for DVB-S2
-				if (  nit->dvb.s.modulation == 6 )  
-					nit->dvb.s.modulation = 86; else //unknown
-				if (  nit->dvb.s.modulation == 14 ) 
-					nit->dvb.s.modulation = 94; else //unknown
-					  nit->dvb.s.modulation = 99;
+				if ( (p[6] & 0x80) ) {
+					nit->dvb.s.orbit = - nit->dvb.s.orbit;
+				}
+				nit->dvb.s.pol = (p[6]>>5)&0x03;
+				nit->dvb.s.pol++;
+				nit->dvb.s.modulation = p[6] & 0x07;
 
-				 nit->dvb.s.symbol_rate = UnpackBCDcode( (char*)p+7, 4 );
-				 nit->dvb.s.symbol_rate /= 100;
-				 nit->dvb.s.fec_rate = (p[10]&0x0f);
+				switch (nit->dvb.s.modulation) {
+					case 0: nit->dvb.s.modulation = 20; break; // DVB-S; 16QAM
+					case 1: nit->dvb.s.modulation = 20; break; // DVB-S; QPSK
+					case 2: nit->dvb.s.modulation = 22; break; // DVB-S; 8PSK
+					case 3: nit->dvb.s.modulation = 1;  break; // DVB-S; 8PSK
+					case 4: nit->dvb.s.modulation = 30; break; // DVB-S2; QPSK
+					case 5: nit->dvb.s.modulation = 31; break; // DVB-S2; QPSK
+					case 6: nit->dvb.s.modulation = 32; break; // DVB-S2; 8PSK
+					case 7: nit->dvb.s.modulation = 30; break; // DVB-S2; QPSK
+				}
+
+     			nit->dvb.s.symbol_rate = UnpackBCDcode( (char*)p+7, 4 );
+				nit->dvb.s.symbol_rate /= 100;
+				nit->dvb.s.fec_rate = (p[10]&0x0f);
+
 				if (  nit->dvb.s.fec_rate > 6 )   nit->dvb.s.fec_rate = 0; else
 				if (  nit->dvb.s.fec_rate == 1 )  nit->dvb.s.fec_rate = 1; else //fec 1/2
 				if (  nit->dvb.s.fec_rate == 2 )  nit->dvb.s.fec_rate = 2; else //fec 2/3
@@ -500,8 +504,9 @@ static int UnpackNIT( DVB_PSI* pDVBPSI, TS_SECTION* pSection )
 				if (  nit->dvb.s.fec_rate == 5 )  nit->dvb.s.fec_rate = 8; else //fec 7/8
 				if (  nit->dvb.s.fec_rate == 6 )  nit->dvb.s.fec_rate = 9;      //fec 8/9
 			}
-			//SageLog(( _LOG_TRACE, 3, TEXT("NIT: type:%d netid:%d; tsid:%d; onid:%d; (name:%s) frq:%d; services-num:%d"),
-			//	nit->type, nit->network_id, nit->tsid, nit->onid, nit->network_name, nit->dvb.t.freq, nit->service_num ));
+
+			SageLog(( _LOG_TRACE, 3, TEXT("NIT: type:%d netid:%d; tsid:%d; onid:%d; (name:%s) frq:%d; services-num:%d; mod:%d"),
+				nit->type, nit->network_id, nit->tsid, nit->onid, nit->network_name, nit->dvb.t.freq, nit->service_num, nit->dvb.s.modulation ));
 
 			if ( pDVBPSI->psi_parser->sub_format == 0 ) 
 			{

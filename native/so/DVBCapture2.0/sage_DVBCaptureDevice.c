@@ -1856,15 +1856,41 @@ int tuneDVBSFrequency( DVBCaptureDev *CDev, DVB_S_FREQ* dvbs, int dryTune )
 			default:  fec = FEC_AUTO;   break;
 		}
 
-		int delivery_system = QPSK;
-		int modulation;
+		fe_delivery_system_t delivery_system;
+		fe_modulation_t modulation;
 		switch (dvbs->modulation) {
-			case 30:
-				modulation = PSK_8;
-				delivery_system = SYS_DVBS2;
+			case 1:
+				delivery_system = SYS_DVBS;
+				modulation = QAM_16;
 				break;
-			default: modulation = QPSK;
+			case 20:
+				delivery_system = SYS_DVBS;
+				modulation = QPSK;
+				break;
+			case 22:
+				delivery_system = SYS_DVBS;
+				modulation = PSK_8;
+				break;
+			case 30:
+				delivery_system = SYS_DVBS2;
+				modulation = QPSK;
+				break;
+			case 31:
+				delivery_system = SYS_DVBS2;
+				modulation = QPSK;
+				break;
+			case 32:
+				delivery_system = SYS_DVBS2;
+				modulation = PSK_8;
+				break;
+			default:
+				flog(( "Native.log", "Unmapped modulation: %d\r\n", dvbs->modulation));
+				delivery_system = SYS_DVBS;
+				modulation = QPSK;
+				break;
 		}
+
+		fe_sec_voltage_t sec_voltage = dvbs->polarisation == 2 ? SEC_VOLTAGE_13 : SEC_VOLTAGE_18;
 
 		struct dtv_property dtv_properties[DTV_IOCTL_MAX_MSGS] = {0};
 		int i = 0;
@@ -1874,6 +1900,8 @@ int tuneDVBSFrequency( DVBCaptureDev *CDev, DVB_S_FREQ* dvbs, int dryTune )
 		dtv_properties[++i].cmd = DTV_SYMBOL_RATE; 		dtv_properties[i].u.data = symbol_rate;
 		dtv_properties[++i].cmd = DTV_INNER_FEC; 		dtv_properties[i].u.data = fec;
 		dtv_properties[++i].cmd = DTV_INVERSION;		dtv_properties[i].u.data = INVERSION_AUTO;
+                //dtv_properties[++i].cmd = DTV_ROLLOFF;                  dtv_properties[i].u.data = ROLLOFF_AUTO;
+		dtv_properties[++i].cmd = DTV_VOLTAGE;          dtv_properties[i].u.data = sec_voltage;
 		dtv_properties[++i].cmd = DTV_TUNE;
 
 		struct dtv_properties dtv_props;
