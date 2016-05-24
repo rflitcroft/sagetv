@@ -1814,14 +1814,12 @@ int tuneDVBSFrequency( DVBCaptureDev *CDev, DVB_S_FREQ* dvbs, int dryTune )
 	unsigned long freq;
 	unsigned long ifreq;
 
-	if (dvbs == NULL)
-	{
+	if (dvbs == NULL) {
 		flog(( "Native.log", "Invalid DVB-S entry.\r\n" ));
 		return -1;
 	}
 
-	if ( !dryTune )
-	{
+	if ( !dryTune ) {
 		//FE_QPSK:
 		freq = dvbs->frequency; //in 10HMZ	
 		unsigned int symbol_rate = dvbs->symbol_rate * 1000;
@@ -1840,7 +1838,6 @@ int tuneDVBSFrequency( DVBCaptureDev *CDev, DVB_S_FREQ* dvbs, int dryTune )
 
 			unsigned long freq_offset = (hiband ? CDev->lnb.high_val : CDev->lnb.low_val) * 1000;
 			ifreq = abs(freq - freq_offset);
-
 		}
 
 		fe_code_rate_t fec;
@@ -1884,7 +1881,7 @@ int tuneDVBSFrequency( DVBCaptureDev *CDev, DVB_S_FREQ* dvbs, int dryTune )
 				modulation = PSK_8;
 				break;
 			default:
-				flog(( "Native.log", "Unmapped modulation: %d\r\n", dvbs->modulation));
+				flog(( "Native.log", "WARNING: Unmapped modulation [%d]. Using DVB-S / QPSK by default.\r\n", dvbs->modulation));
 				delivery_system = SYS_DVBS;
 				modulation = QPSK;
 				break;
@@ -1914,6 +1911,7 @@ int tuneDVBSFrequency( DVBCaptureDev *CDev, DVB_S_FREQ* dvbs, int dryTune )
 
 		if (ioctl(CDev->frontendFd, FE_SET_PROPERTY, &dtv_props) == -1) {
 			flog(( "Native.log", "Failed setting front-end properties.(%s)\r\n", strerror(errno) ));
+			return -1;
 		}
 
 /*		if((CDev->dvrFd = open(CDev->dvrName,O_RDONLY|O_NONBLOCK)) < 0)
@@ -1925,17 +1923,12 @@ int tuneDVBSFrequency( DVBCaptureDev *CDev, DVB_S_FREQ* dvbs, int dryTune )
 		//wait lock
 		int wait_count = 12;
 		status = 0;
-		while ( wait_count--)
-		{
-			if ( ioctl(CDev->frontendFd, FE_READ_STATUS, &status) < 0 )
-			{
+		while ( wait_count--) {
+			if ( ioctl(CDev->frontendFd, FE_READ_STATUS, &status) < 0 ) {
 				flog(( "Native.log", "failed getting DVB-S front end status (%s).\r\n", strerror(errno)  ));
 				break;
-			}
-			else
-			{
-				if ( status & 0xf0 )
-					break;
+			} else if ( status & 0xf0 ) {
+				break;
 			}
 
 			usleep( 10000 );
