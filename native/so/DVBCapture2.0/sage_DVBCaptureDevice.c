@@ -1809,21 +1809,19 @@ static int setup_lnb( int frontend_fd, int sat_no, int voltage_18, int hiband );
 
 int tuneDVBSFrequency( DVBCaptureDev *CDev, DVB_S_FREQ* dvbs, int dryTune )
 {
-	fe_status_t status;
-	struct dvb_frontend_parameters feparams = {0};
-	unsigned long freq;
-	unsigned long ifreq;
+	fe_status_t status = 0;
 
 	if (dvbs == NULL) {
 		flog(( "Native.log", "Invalid DVB-S entry.\r\n" ));
 		return -1;
 	}
 
+	unsigned long freq;
 	if ( !dryTune ) {
-		//FE_QPSK:
 		freq = dvbs->frequency; //in 10HMZ	
 		unsigned int symbol_rate = dvbs->symbol_rate * 1000;
 
+		unsigned long ifreq;
 		{
 			int hiband = (CDev->lnb.switch_val
 					&& CDev->lnb.high_val
@@ -1842,51 +1840,34 @@ int tuneDVBSFrequency( DVBCaptureDev *CDev, DVB_S_FREQ* dvbs, int dryTune )
 
 		fe_code_rate_t fec;
 		switch( dvbs->fec_inner_rate ) {
-			case 1:fec = FEC_1_2;	 	break;
-			case 2:fec = FEC_2_3;		break;
-			case 3:fec = FEC_3_4;		break;
-			case 4:fec = FEC_3_5;		break;
-			case 5:fec = FEC_4_5;		break;
-			case 6:fec = FEC_5_6;		break;
-			case 7:fec = FEC_7_8;		break;
-			case 8:fec = FEC_8_9;		break;
+			case 1: fec = FEC_1_2;	 	break;
+			case 2: fec = FEC_2_3;		break;
+			case 3: fec = FEC_3_4;		break;
+			case 4: fec = FEC_3_5;		break;
+			case 5: fec = FEC_4_5;		break;
+			case 6: fec = FEC_5_6;		break;
+			case 7: fec = FEC_7_8;		break;
+			case 8: fec = FEC_8_9;		break;
 			default:  fec = FEC_AUTO;   break;
 		}
 
-		fe_delivery_system_t delivery_system;
+		fe_delivery_system_t delivery_system = (dvbs->modulation) < 30 ? SYS_DVBS : SYS_DVBS2;
+
 		fe_modulation_t modulation;
 		switch (dvbs->modulation) {
-			case 1:
-				delivery_system = SYS_DVBS;
-				modulation = QAM_16;
-				break;
+			case 1:	modulation = QAM_16; break;
 			case 20:
-				delivery_system = SYS_DVBS;
-				modulation = QPSK;
-				break;
-			case 22:
-				delivery_system = SYS_DVBS;
-				modulation = PSK_8;
-				break;
 			case 30:
-				delivery_system = SYS_DVBS2;
-				modulation = QPSK;
-				break;
-			case 31:
-				delivery_system = SYS_DVBS2;
-				modulation = QPSK;
-				break;
-			case 32:
-				delivery_system = SYS_DVBS2;
-				modulation = PSK_8;
-				break;
+			case 31: modulation = QPSK; break;
+			case 22:
+			case 32: modulation = PSK_8; break;
 			default:
-				flog(( "Native.log", "WARNING: Unmapped modulation [%d]. Using DVB-S / QPSK by default.\r\n", dvbs->modulation));
-				delivery_system = SYS_DVBS;
+				flog(( "Native.log", "WARNING: Unmapped modulation [%d]. Using QPSK by default.\r\n", dvbs->modulation));
 				modulation = QPSK;
 				break;
 		}
 
+		struct dvb_frontend_parameters feparams = {0};
 		fe_sec_voltage_t sec_voltage = dvbs->polarisation == 2 ? SEC_VOLTAGE_13 : SEC_VOLTAGE_18;
 
 		struct dtv_property dtv_properties[DTV_IOCTL_MAX_MSGS] = {0};
@@ -1897,7 +1878,7 @@ int tuneDVBSFrequency( DVBCaptureDev *CDev, DVB_S_FREQ* dvbs, int dryTune )
 		dtv_properties[++i].cmd = DTV_SYMBOL_RATE; 		dtv_properties[i].u.data = symbol_rate;
 		dtv_properties[++i].cmd = DTV_INNER_FEC; 		dtv_properties[i].u.data = fec;
 		dtv_properties[++i].cmd = DTV_INVERSION;		dtv_properties[i].u.data = INVERSION_AUTO;
-                //dtv_properties[++i].cmd = DTV_ROLLOFF;                  dtv_properties[i].u.data = ROLLOFF_AUTO;
+        //dtv_properties[++i].cmd = DTV_ROLLOFF;          dtv_properties[i].u.data = ROLLOFF_AUTO;
 		dtv_properties[++i].cmd = DTV_VOLTAGE;          dtv_properties[i].u.data = sec_voltage;
 		dtv_properties[++i].cmd = DTV_TUNE;
 
@@ -1922,18 +1903,14 @@ int tuneDVBSFrequency( DVBCaptureDev *CDev, DVB_S_FREQ* dvbs, int dryTune )
 */
 		//wait lock
 		int wait_count = 12;
-		status = 0;
-		while ( wait_count--) {
-			if ( ioctl(CDev->frontendFd, FE_READ_STATUS, &status) < 0 ) {
-				flog(( "Native.log", "failed getting DVB-S front end status (%s).\r\n", strerror(errno)  ));
-				break;
-			} else if ( status & 0xf0 ) {
-				break;
+		while (wait_count-- && !(status & 0xf0)) {
+			if (ioctl(CDev->frontendFd, FE_READ_STATUS, &status) < 0) {
+				flog(( "Native.log", "failed getting DVB-S front end status (%s).\r\n", strerror(errno) ));
 			}
-
 			usleep( 10000 );
 		}
 	}
+
 	flog(( "Native.log", "front end status: 0x%x.\r\n",  status ));
 	resetHardDemuxPid( CDev, ALL_PIDS );
 	return 1;
